@@ -9,8 +9,7 @@ This Document describes how to migrate the **traffic bills** from Observium to l
 *  **No traffic bills** have been created in librenms.
 *  The scripts have been tested on librenms version Version	22.1.0 and DB Schema "2021_11_29_165436_improve_ports_search_index (229)"
 
-### Precations
-
+### Precaution
 backup your databases first:
 *  ``mysqldump observium > observium.sql``
 *  ``mysqldump librenms > librenms.sql``

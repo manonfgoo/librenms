@@ -1,14 +1,17 @@
 # Traffic Bill Mirgation from Observium
 
-This Doucment describes how to migrate the ``traffic bills`` from Observium to librenms
+This Document describes how to migrate the **traffic bills** from Observium to librenms
 
 ### Assumptions
 
 * The librenms is complete, mmigration has taken place and except the traffic bills and traffic bill history.
 
-The old DB is called ``observium`` and new DB is called ``librenms``. If both DBs are not on the same DB Server, create a DB called ``observium`` on the target DB-Server run mysqldump or what so ever to copy the data.
+* The old DB is called ``observium`` and new DB is called ``librenms``. If both DBs are not on the same DB Server, create a DB called ``observium`` on the target DB-Server run mysqldump or what so ever to copy the data.
 
-BACKUK your Databases first 
+### Precations
+
+backup your databases first:
+
 ``mysqldump observium > observium.sql``
 ``mysqldump librenms > librenms.sql``
 
@@ -44,8 +47,9 @@ INSERT INTO librenms.bill_history
  
 
 --  
---  There is a Primary key on bill_id and timestamp, to avoid primary key confusiosn we use the recorrd with the greatest bill_data.delta in case of conflict. (ON DUPLICATE KEY UPDATE ...)
+--  There is a Primary key on bill_id and timestamp, to in case of duplicate primary keys  we use the recorrd with the greatest bill_data.delta. ( see "ON DUPLICATE KEY UPDATE ...")
 --  
+SELECT count(bill_id) from  observium.bill_data;
 TRUNCATE TABLE  librenms.bill_data;
 INSERT INTO librenms.bill_data 
         ( bill_id, timestamp, period, delta, in_delta, out_delta ) 
@@ -62,7 +66,7 @@ INSERT INTO librenms.bill_data
             IF ( librenms.bill_data.delta >= VALUES(librenms.bill_data.delta), librenms.bill_data.period, VALUES(librenms.bill_data.period) )
     ;
 COMMIT ;
-select count(bill_id) from  librenms.bill_data;
+SELECT count(bill_id) from  librenms.bill_data;
 UNLOCK TABLES;
 -- Please compare if the  count(bill_id) values are reasonable
 ```
@@ -78,8 +82,8 @@ Replay the data collecetd on observium since before the last copy, to avoid loos
 ```
 \u observium
 
-lock tables librenms.bill_data WRITE, observium.bill_data WRITE ;
-select count(bill_id) from  observium.bill_data;
+LOCK tables librenms.bill_data WRITE, observium.bill_data WRITE ;
+SELECT count(bill_id) from  observium.bill_data;
 TRUNCATE TABLE  librenms.bill_data;
  
 INSERT INTO librenms.bill_data 
@@ -97,27 +101,8 @@ INSERT INTO librenms.bill_data
             IF ( librenms.bill_data.delta >= VALUES(librenms.bill_data.delta), librenms.bill_data.period, VALUES(librenms.bill_data.period) )
     ;
 COMMIT ;
-select count(bill_id) from  librenms.bill_data;
+SELECT count(bill_id) from  librenms.bill_data;
 UNLOCK TABLES;
-
-```
-
-
-Attic
-```
-
- 
-  delete from librenms.bill_data;
-
-
-INSERT INTO librenms.bill_data 
-        ( bill_id, timestamp, period, delta, in_delta, out_delta ) 
-    SELECT  
-        bill_id, timestamp, period, delta, in_delta, out_delta  from  observium.bill_data  
-    ON DUPLICATE KEY UPDATE
-        librenms.bill_data.delta=librenms.bill_data.delta+VALUES(librenms.bill_data.delta),
-        librenms.bill_data.in_delta=librenms.bill_data.in_delta+VALUES(librenms.bill_data.in_delta),
-        librenms.bill_data.out_delta=librenms.bill_data.out_delta+VALUES(librenms.bill_data.out_delta)
-    ;
-
+SELECT "The next query should return an empty set" AS "Information";
+SELECT t1.bill_id  AS "unrefferenced bill_data.bill_id records", t1.timestamp  from bill_data AS t1 LEFT JOIN bills t2 ON t1.bill_id = t2.bill_id WHERE t2.bill_id IS NULL LIMIT 100;
 ```

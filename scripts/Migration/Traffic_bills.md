@@ -6,7 +6,7 @@ This Document describes how to migrate the **traffic bills** from Observium to l
 
 * The librenms is complete, mmigration has taken place and except the traffic bills and traffic bill history.
 
-* The old DB is called ``observium`` and new DB is called ``librenms``. If both DBs are not on the same DB Server, create a DB called ``observium`` on the target DB-Server run mysqldump or what so ever to copy the data.
+* The old DB is called ``observium`` and new DB is called ``librenms``. If both DBs are not on the same DB Server, create a DB called ``observium`` on the target DB-Server run mysqldump & co to copy the data.
 
 ### Precations
 

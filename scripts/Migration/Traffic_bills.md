@@ -5,10 +5,9 @@ This Document describes how to migrate the **traffic bills** from Observium to l
 ### Assumptions
 
 * The librenms installation is complete and migration has taken place except for the traffic bills and traffic bill history.
-
 * The old DB is called ``observium`` and new DB is called ``librenms``. If both DBs are not on the same DB Server, create a DB called ``observium`` on the target DB-Server run mysqldump & co to copy the data.
-
 *  **No traffic bills** have been created in librenms.
+*  The scripts have been tested on librenms version Version	22.1.0 and DB Schema "2021_11_29_165436_improve_ports_search_index (229)"
 
 ### Precations
 
@@ -70,6 +69,7 @@ INSERT INTO librenms.bill_data
 COMMIT ;
 SELECT count(bill_id) from  librenms.bill_data;
 UNLOCK TABLES;
+
 -- Please compare if the  count(bill_id) values are reasonable
 ```
 

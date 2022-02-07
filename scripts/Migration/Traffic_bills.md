@@ -13,9 +13,8 @@ This Document describes how to migrate the **traffic bills** from Observium to l
 ### Precations
 
 backup your databases first:
-
-``mysqldump observium > observium.sql``
-``mysqldump librenms > librenms.sql``
+*  ``mysqldump observium > observium.sql``
+*  ``mysqldump librenms > librenms.sql``
 
 ### Warning: traffic bills will be deleted from librenms and imported from observium!
 

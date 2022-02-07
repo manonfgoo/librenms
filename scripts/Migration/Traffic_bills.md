@@ -1,0 +1,123 @@
+# Traffic Bill Mirgation from Observium
+
+This Doucment describes how to migrate the ``traffic bills`` from Observium to librenms
+
+### Assumptions
+
+* The librenms is complete, mmigration has taken place and except the traffic bills and traffic bill history.
+
+The old DB is called ``observium`` and new DB is called ``librenms``. If both DBs are not on the same DB Server, create a DB called ``observium`` on the target DB-Server run mysqldump or what so ever to copy the data.
+
+BACKUK your Databases first 
+``mysqldump observium > observium.sql``
+``mysqldump librenms > librenms.sql``
+
+
+### Initial Import
+
+```
+\u observium
+
+lock tables librenms.bill_history librenms.bills librenms.bill_data WRITE, observium.bill_data WRITE, observium.bill_history READ, observium.bills READ ;
+
+--  
+--  The columns bill_polled, bill_contact, bill_threshold and bill_notify are not present in the observium data model
+--   
+TRUNCATE TABLE librenms.bills;
+INSERT INTO librenms.bills 
+        ( bill_id, bill_name, bill_type, bill_cdr, bill_day, bill_quota, rate_95th_in, rate_95th_out, rate_95th, dir_95th, total_data, total_data_in, total_data_out, rate_average_in, rate_average_out, rate_average, bill_last_calc, bill_custid, bill_ref, bill_notes, bill_autoadded ) 
+    SELECT 
+        bill_id, bill_name, bill_type, bill_cdr, bill_day, bill_quota, rate_95th_in, rate_95th_out, rate_95th, dir_95th, total_data, total_data_in, total_data_out, rate_average_in, rate_average_out, rate_average, bill_last_calc, bill_custid, bill_ref, bill_notes, bill_autoadded  
+    FROM observium.bills
+    ;
+    
+--  
+--  the columns bill_peak_out, bill_peak_in are  not present in the observium data model
+--  
+TRUNCATE TABLE librenms.bill_history;
+INSERT INTO librenms.bill_history 
+        ( bill_hist_id, bill_id, updated, bill_datefrom, bill_dateto, bill_type, bill_allowed, bill_used, bill_overuse, bill_percent, rate_95th_in, rate_95th_out, rate_95th, dir_95th, rate_average, rate_average_in, rate_average_out, traf_in, traf_out, traf_total, pdf )
+    SELECT 
+        bill_hist_id, bill_id, updated, bill_datefrom, bill_dateto, bill_type, bill_allowed, bill_used, bill_overuse, bill_percent, rate_95th_in, rate_95th_out, rate_95th, dir_95th, rate_average, rate_average_in, rate_average_out, traf_in, traf_out, traf_total, pdf  
+    FROM observium.bill_history 
+    ;
+ 
+
+--  
+--  There is a Primary key on bill_id and timestamp, to avoid primary key confusiosn we use the recorrd with the greatest bill_data.delta in case of conflict. (ON DUPLICATE KEY UPDATE ...)
+--  
+TRUNCATE TABLE  librenms.bill_data;
+INSERT INTO librenms.bill_data 
+        ( bill_id, timestamp, period, delta, in_delta, out_delta ) 
+    SELECT  
+        bill_id, timestamp, period, delta, in_delta, out_delta  from  observium.bill_data  
+    ON DUPLICATE KEY UPDATE
+        librenms.bill_data.delta=
+            IF ( librenms.bill_data.delta >= VALUES(librenms.bill_data.delta), librenms.bill_data.delta, VALUES(librenms.bill_data.delta) ),
+        librenms.bill_data.in_delta=
+            IF ( librenms.bill_data.delta >= VALUES(librenms.bill_data.delta), librenms.bill_data.in_delta, VALUES(librenms.bill_data.in_delta) ),
+        librenms.bill_data.out_delta=
+            IF ( librenms.bill_data.delta >= VALUES(librenms.bill_data.delta), librenms.bill_data.out_delta, VALUES(librenms.bill_data.out_delta) ),
+        librenms.bill_data.period=
+            IF ( librenms.bill_data.delta >= VALUES(librenms.bill_data.delta), librenms.bill_data.period, VALUES(librenms.bill_data.period) )
+    ;
+COMMIT ;
+select count(bill_id) from  librenms.bill_data;
+UNLOCK TABLES;
+-- Please compare if the  count(bill_id) values are reasonable
+```
+
+### Go to the WEB UI
+
+Now  chek if everything worked OK and reconnect the switchports in the GUI.
+
+### Second import:
+Replay the data collecetd on observium since before the last copy, to avoid loosing billing records.
+
+
+```
+\u observium
+
+lock tables librenms.bill_data WRITE, observium.bill_data WRITE ;
+select count(bill_id) from  observium.bill_data;
+TRUNCATE TABLE  librenms.bill_data;
+ 
+INSERT INTO librenms.bill_data 
+        ( bill_id, timestamp, period, delta, in_delta, out_delta ) 
+    SELECT  
+        bill_id, timestamp, period, delta, in_delta, out_delta  from  observium.bill_data  
+    ON DUPLICATE KEY UPDATE
+        librenms.bill_data.delta=
+            IF ( librenms.bill_data.delta >= VALUES(librenms.bill_data.delta), librenms.bill_data.delta, VALUES(librenms.bill_data.delta) ),
+        librenms.bill_data.in_delta=
+            IF ( librenms.bill_data.delta >= VALUES(librenms.bill_data.delta), librenms.bill_data.in_delta, VALUES(librenms.bill_data.in_delta) ),
+        librenms.bill_data.out_delta=
+            IF ( librenms.bill_data.delta >= VALUES(librenms.bill_data.delta), librenms.bill_data.out_delta, VALUES(librenms.bill_data.out_delta) ),
+        librenms.bill_data.period=
+            IF ( librenms.bill_data.delta >= VALUES(librenms.bill_data.delta), librenms.bill_data.period, VALUES(librenms.bill_data.period) )
+    ;
+COMMIT ;
+select count(bill_id) from  librenms.bill_data;
+UNLOCK TABLES;
+
+```
+
+
+Attic
+```
+
+ 
+  delete from librenms.bill_data;
+
+
+INSERT INTO librenms.bill_data 
+        ( bill_id, timestamp, period, delta, in_delta, out_delta ) 
+    SELECT  
+        bill_id, timestamp, period, delta, in_delta, out_delta  from  observium.bill_data  
+    ON DUPLICATE KEY UPDATE
+        librenms.bill_data.delta=librenms.bill_data.delta+VALUES(librenms.bill_data.delta),
+        librenms.bill_data.in_delta=librenms.bill_data.in_delta+VALUES(librenms.bill_data.in_delta),
+        librenms.bill_data.out_delta=librenms.bill_data.out_delta+VALUES(librenms.bill_data.out_delta)
+    ;
+
+```

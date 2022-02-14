@@ -74,7 +74,7 @@ UNLOCK TABLES;
 
 ### Go to the WEB UI
 
-Now  chek if everything worked OK and reconnect the switchports in the GUI.
+Now  check if everything worked OK and reconnect the switchports in the GUI.
 
 ### Second import:
 Replay the data collecetd on observium since before the last copy, to avoid loosing billing records.
